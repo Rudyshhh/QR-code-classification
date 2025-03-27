@@ -19,10 +19,6 @@ class QRCodeClassifier:
         }
         
     def train_models(self, X_train, y_train):
-        """
-        Train multiple models with cross-validation
-        """
-        # Random Forest Hyperparameter Tuning
         rf_params = {
             'n_estimators': [100, 200, 300],
             'max_depth': [None, 10, 20],
@@ -37,7 +33,6 @@ class QRCodeClassifier:
         rf_grid.fit(X_train, y_train)
         self.models['random_forest'] = rf_grid.best_estimator_
         
-        # SVM Hyperparameter Tuning
         svm_params = {
             'C': [0.1, 1, 10],
             'kernel': ['linear', 'rbf'],
@@ -53,9 +48,6 @@ class QRCodeClassifier:
         self.models['svm'] = svm_grid.best_estimator_
         
     def evaluate_models(self, X_test, y_test):
-        """
-        Comprehensive model evaluation
-        """
         results = {}
         
         for name, model in self.models.items():
@@ -68,7 +60,6 @@ class QRCodeClassifier:
                 'f1_score': precision_recall_fscore_support(y_test, y_pred)[2]
             }
             
-            # Confusion Matrix
             cm = confusion_matrix(y_test, y_pred)
             plt.figure(figsize=(8, 6))
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
@@ -81,7 +72,6 @@ class QRCodeClassifier:
         
         return results
 
-# Comprehensive Model Training and Evaluation Script
 def main():
     from data_preprocessing import QRCodeDataProcessor
     from sklearn.model_selection import train_test_split
@@ -97,7 +87,6 @@ def main():
     classifier.train_models(X_train, y_train)
     results = classifier.evaluate_models(X_test, y_test)
     
-    # Print detailed results
     for model_name, metrics in results.items():
         print(f"\n{model_name.replace('_', ' ').title()} Model Results:")
         for metric, value in metrics.items():
