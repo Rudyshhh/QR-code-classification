@@ -149,6 +149,7 @@ def main():
     history = classifier.train(X_train, X_test, y_train, y_test)
     
     # Evaluate performance
+
     classifier.evaluate(X_test, y_test)
 
 if __name__ == "__main__":

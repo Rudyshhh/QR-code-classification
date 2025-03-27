@@ -4,7 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cv2
-from skimage import feature, color
+from skimage import feature, color, filters, measure
+from scipy import stats
 from sklearn.model_selection import train_test_split
 
 class QRCodeDataProcessor:
@@ -43,7 +44,7 @@ class QRCodeDataProcessor:
     
     def analyze_dataset(self):
         """
-        Perform basic dataset analysis
+        Perform comprehensive dataset analysis
         """
         images, labels = self.load_images()
         
@@ -59,63 +60,148 @@ class QRCodeDataProcessor:
         print(f"Image Shape: {images[0].shape}")
         
         # Visualize image differences
-        plt.figure(figsize=(15, 5))
+        plt.figure(figsize=(20, 5))
         
         # First print average
-        plt.subplot(131)
+        plt.subplot(141)
         first_prints = images[labels == 0]
         plt.title("First Print Average")
         plt.imshow(np.mean(first_prints, axis=0), cmap='gray')
         
         # Second print average
-        plt.subplot(132)
+        plt.subplot(142)
         second_prints = images[labels == 1]
         plt.title("Second Print Average")
         plt.imshow(np.mean(second_prints, axis=0), cmap='gray')
         
         # Difference visualization
-        plt.subplot(133)
+        plt.subplot(143)
         plt.title("First vs Second Print Difference")
         plt.imshow(np.mean(first_prints, axis=0) - np.mean(second_prints, axis=0), cmap='coolwarm')
         
+        # Noise and texture analysis
+        plt.subplot(144)
+        noise_diff = np.std(first_prints, axis=0) - np.std(second_prints, axis=0)
+        plt.title("Noise Difference")
+        plt.imshow(noise_diff, cmap='coolwarm')
+        
         plt.tight_layout()
-        plt.savefig('dataset_analysis.png')
+        plt.savefig('dataset_analysis_enhanced.png')
         plt.close()
     
     def feature_extraction(self):
         """
-        Extract advanced features from QR code images
+        Enhanced feature extraction with multiple advanced techniques
         """
         images, labels = self.load_images()
         features = []
         
         for img in images:
-            # Local Binary Patterns (LBP)
+            # 1. Local Binary Patterns (LBP) - Texture Features
             lbp = feature.local_binary_pattern(img, P=8, R=1, method='uniform')
+            lbp_hist = np.histogram(lbp.ravel(), bins=np.arange(10))[0]
             
-            # Histogram of Oriented Gradients (HOG)
+            # 2. Histogram of Oriented Gradients (HOG)
             hog_features = feature.hog(img, 
                                        orientations=9, 
                                        pixels_per_cell=(8, 8),
                                        cells_per_block=(2, 2), 
                                        transform_sqrt=True)
             
-            # Combine features
+            # 3. Statistical Features
+            statistical_features = [
+                np.mean(img),       # Average intensity
+                np.std(img),        # Standard deviation
+                stats.skew(img.ravel()),  # Skewness
+                stats.kurtosis(img.ravel())  # Kurtosis
+            ]
+            
+            # 4. Edge Detection Features
+            edges = feature.canny(img)
+            edge_density = np.sum(edges) / (img.shape[0] * img.shape[1])
+            edge_features = [edge_density]
+            
+            # 5. Frequency Domain Features using Fourier Transform
+            f_transform = np.fft.fft2(img)
+            f_shifted = np.fft.fftshift(f_transform)
+            magnitude_spectrum = 20 * np.log(np.abs(f_shifted))
+            freq_features = [
+                np.mean(magnitude_spectrum),
+                np.std(magnitude_spectrum)
+            ]
+            
+            # 6. Contrast and Entropy Features
+            contrast = filters.difference_of_gaussians(img, 1, 5)
+            entropy = measure.shannon_entropy(img)
+            
+            # Combine all features
             combined_features = np.concatenate([
-                np.histogram(lbp.ravel(), bins=np.arange(10))[0],
-                hog_features
+                lbp_hist,
+                hog_features,
+                statistical_features,
+                edge_features,
+                freq_features,
+                [contrast.mean(), contrast.std()],
+                [entropy]
             ])
             
             features.append(combined_features)
         
         return np.array(features), labels
+    
+    def visualize_feature_differences(self, features, labels):
+        """
+        Visualize feature distributions between first and second prints
+        """
+        plt.figure(figsize=(20, 10))
+        
+        # Select a few representative features to visualize
+        selected_features = [
+            (0, "LBP Histogram"),
+            (-4, "Contrast Mean"),
+            (-2, "Entropy"),
+            (10, "Statistical Mean"),
+            (11, "Statistical Std Dev")
+        ]
+        
+        for i, (feature_idx, feature_name) in enumerate(selected_features, 1):
+            plt.subplot(2, 3, i)
+            first_print_features = features[labels == 0][:, feature_idx]
+            second_print_features = features[labels == 1][:, feature_idx]
+            
+            sns.histplot(
+                x=first_print_features, 
+                label='First Print', 
+                kde=True, 
+                color='blue', 
+                alpha=0.5
+            )
+            sns.histplot(
+                x=second_print_features, 
+                label='Second Print', 
+                kde=True, 
+                color='red', 
+                alpha=0.5
+            )
+            
+            plt.title(f'Distribution of {feature_name}')
+            plt.xlabel('Feature Value')
+            plt.ylabel('Frequency')
+            plt.legend()
+        
+        plt.tight_layout()
+        plt.savefig('feature_distributions.png')
+        plt.close()
 
 # Example usage
 if __name__ == "__main__":
     processor = QRCodeDataProcessor('data')
+    
+    # Perform dataset analysis
     processor.analyze_dataset()
     
+    # Extract features
     X_features, y_labels = processor.feature_extraction()
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_features, y_labels, test_size=0.2, random_state=42
-    )
+    
+    # Visualize feature differences
+    processor.visualize_feature_differences(X_features, y_labels)
